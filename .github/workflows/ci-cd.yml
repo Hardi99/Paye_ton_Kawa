@@ -1,0 +1,104 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:4.4
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongo --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+
+    env:
+      MONGODB_URI: mongodb://localhost:27017/test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14'
+
+    - name: Install dependencies for auth-service
+      run: npm install
+      working-directory: ./auth-service
+
+    - name: Run unit tests for auth-service
+      run: npm test
+      working-directory: ./auth-service
+
+    - name: Install dependencies for api-gateway
+      run: npm install
+      working-directory: ./api-gateway
+
+    - name: Run unit tests for api-gateway
+      run: npm test
+      working-directory: ./api-gateway
+
+    - name: Install dependencies for client-service
+      run: npm install
+      working-directory: ./client-service
+
+    - name: Run unit tests for client-service
+      run: npm test
+      working-directory: ./client-service
+
+    - name: Install dependencies for coffee-service
+      run: npm install
+      working-directory: ./coffee-service
+
+    - name: Run unit tests for coffee-service
+      run: npm test
+      working-directory: ./coffee-service
+
+    - name: Install dependencies for order-service
+      run: npm install
+      working-directory: ./order-service
+
+    - name: Run unit tests for order-service
+      run: npm test
+      working-directory: ./order-service
+
+    - name: Run integration tests
+      run: npm run test:integration
+      working-directory: ./integration-tests
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14'
+
+    - name: Install dependencies for api-gateway
+      run: npm install
+      working-directory: ./api-gateway
+
+    - name: Deploy to Heroku
+      env:
+        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+      run: |
+        git remote add heroku https://git.heroku.com/${{ secrets.HEROKU_APP_NAME }}.git
+        git push heroku main
